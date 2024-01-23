@@ -19,11 +19,15 @@
  */
 
 const HDWalletProvider = require('@truffle/hdwallet-provider');
+const mnemonic = 'lesson grit axis token toss wedding warfare slide blur wagon coach dawn'
+const maticmainnet_rpc_url = 'https://polygon-mainnet.infura.io/v3/6be42e67fa7a47b0bf2266d130b94711'
+const maticmumbai_rpc_url = 'https://polygon-mumbai.infura.io/v3/6be42e67fa7a47b0bf2266d130b94711';
+
 // const infuraKey = "fj4jll3k.....";
 //
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
-const mnemonic = "";
+// const mnemonic = "";
 module.exports = {
   /**
    * Networks define how you connect to your ethereum client and let you set the
@@ -77,6 +81,17 @@ module.exports = {
     // network_id: 2111,   // This network is yours, in the cloud.
     // production: true    // Treats this network as if it was a public net. (default: false)
     // }
+    maticmainnet: {
+			provider: function() {
+				return new HDWalletProvider(mnemonic, maticmainnet_rpc_url);
+			  },
+			  network_id: 137,
+        gasPrice: 100000000000,        // Ropsten has a lower block limit than mainnet
+		},
+    maticmumbai: {
+			provider: () => new HDWalletProvider(mnemonic, maticmumbai_rpc_url),
+			network_id: 80001,
+		},
   },
 
   // Set default mocha options here, use special reporters etc.
@@ -87,7 +102,7 @@ module.exports = {
   // Configure your compilers
   compilers: {
     solc: {
-      version: "^0.6.0"    // Fetch exact version from solc-bin (default: truffle's version)
+      version: "0.7.6"    // Fetch exact version from solc-bin (default: truffle's version)
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
       // settings: {          // See the solidity docs for advice about optimization and evmVersion
       //  optimizer: {

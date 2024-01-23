@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.0;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import "./Utils.sol";
@@ -57,8 +57,8 @@ contract BeldexBase {
     event TransferOccurred(Utils.G1Point[] parties); 
     event LogUint256(string label, uint256 indexed value);
 
-    constructor(address _transfer,address _redeem, uint256 _unit) public {
-        beldex_agency = msg.sender;
+    constructor(address _transfer,address _redeem, uint256 _unit) {
+        beldex_agency = payable(msg.sender);
         beldex_transfer = BeldexTransfer(_transfer);
         beldex_redeem = BeldexRedeem(_redeem);
         unit = _unit;
@@ -146,8 +146,8 @@ contract BeldexBase {
 
     function getAccountState (Utils.G1Point memory y) public view returns (Utils.G1Point[2] memory y_available, Utils.G1Point[2] memory y_pending) {
         bytes32 yHash = keccak256(abi.encode(y));
-        y_available = acc[yHash];
-        y_pending = pending[yHash];
+        y_available = acc[yHash]; // available amount
+        y_pending = pending[yHash]; //pending amount
         return (y_available, y_pending);
     }
 
@@ -159,7 +159,7 @@ contract BeldexBase {
 
     function rollOver(bytes32 yHash) internal {
         uint256 e = 0;
-        if (round_base == 0)
+        if (round_base == 0)   // this only active
             e = block.number / round_len;
         else if (round_base == 1)
             e = block.timestamp / round_len;
@@ -169,9 +169,9 @@ contract BeldexBase {
         if (last_roll_over[yHash] < e) {
             Utils.G1Point[2][2] memory scratch = [acc[yHash], pending[yHash]];
             acc[yHash][0] = scratch[0][0].pAdd(scratch[1][0]);
-            acc[yHash][1] = scratch[0][1].pAdd(scratch[1][1]);
-            delete pending[yHash];
-            last_roll_over[yHash] = e;
+            acc[yHash][1] = scratch[0][1].pAdd(scratch[1][1]); // adding pending amount to available amount
+            delete pending[yHash];  // removing pending amount
+            last_roll_over[yHash] = e; // this for the account
         }
         if (last_global_update < e) {
             last_global_update = e;
@@ -179,7 +179,7 @@ contract BeldexBase {
         }
     }
 
-    function mintBase(Utils.G1Point memory y, uint256 amount, bytes memory encGuess) internal {
+    function mintBase(Utils.G1Point calldata y, uint256 amount, bytes calldata encGuess) internal {
 
         require(amount <= MAX && balance_log + amount <= MAX, "[Beldex mint] Mint pushes contract past maximum value.");
         balance_log += amount;
@@ -188,16 +188,16 @@ contract BeldexBase {
 
         bytes32 yHash = keccak256(abi.encode(y));
         require(registered(yHash), "[Beldex mint] Account not yet registered.");
-        rollOver(yHash);
+        rollOver(yHash); // old amount is removed from pending , pending amount moved to acc[yhash], rollbackheight added
 
-        Utils.G1Point memory scratch = pending[yHash][0];
-        scratch = scratch.pAdd(Utils.g().pMul(amount));
-        pending[yHash][0] = scratch;
+        Utils.G1Point memory scratch = pending[yHash][0];  // probably zero
+        scratch = scratch.pAdd(Utils.g().pMul(amount));   // old amount + new amount
+        pending[yHash][0] = scratch; // added amount in pending  // asign old+new to pending[yhash][0]
 
-        guess[yHash] = encGuess;
+        guess[yHash] = encGuess; // old available in bytes encrypted with aesseckey
     }
 
-    function redeemBase(Utils.G1Point memory y, uint256 amount, Utils.G1Point memory u, bytes memory proof, bytes memory encGuess) internal {
+    function redeemBase(Utils.G1Point calldata y, uint256 amount, Utils.G1Point calldata u, bytes calldata proof, bytes calldata encGuess) internal {
 
         require(balance_log >= amount, "[Beldex redeem] Failed: Invalid redeem amount.");
         balance_log -= amount;
@@ -207,19 +207,19 @@ contract BeldexBase {
         require(registered(yHash), "[Beldex redeem] Account not yet registered.");
         rollOver(yHash);
 
-        Utils.G1Point[2] memory scratch = pending[yHash];
-        pending[yHash][0] = scratch[0].pAdd(Utils.g().pMul(amount.gNeg()));
+        Utils.G1Point[2] memory scratch = pending[yHash];  // probably zero
+        pending[yHash][0] = scratch[0].pAdd(Utils.g().pMul(amount.gNeg())); // negative value in pending
 
-        scratch = acc[yHash]; // simulate debit of acc---just for use in verification, won't be applied
-        scratch[0] = scratch[0].pAdd(Utils.g().pMul(amount.gNeg()));
-        bytes32 uHash = keccak256(abi.encode(u));
+        scratch = acc[yHash]; //(available+pending eg 8-1=>7) simulate debit of acc---just for use in verification, won't be applied 
+        scratch[0] = scratch[0].pAdd(Utils.g().pMul(amount.gNeg())); // if i again redeem -1 means (7-1 =>6) actual amount
+        bytes32 uHash = keccak256(abi.encode(u)); //(last_roll_over(last transaction) + account.privatekey)
         for (uint256 i = 0; i < nonce_set.length; i++) {
             require(nonce_set[i] != uHash, "[Beldex redeem] Nonce already seen!");
         }
         nonce_set.push(uHash);
 
-        guess[yHash] = encGuess;
-
+        guess[yHash] = encGuess; // old available before the previous transaction
+        // u = (last_roll_over(last transaction) + account.privatekey)
         BeldexRedeem.Statement memory beldex_stm = beldex_redeem.wrapStatement(scratch[0], scratch[1], y, last_global_update, u, msg.sender);
         BeldexRedeem.Proof memory beldex_proof = beldex_redeem.unserialize(proof);
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.0;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import "./Utils.sol";
@@ -7,27 +7,30 @@ import "./BeldexBase.sol";
 
 contract BeldexETH is BeldexBase {
 
-    constructor(address _transfer, address _redeem, uint256 _unit) BeldexBase(_transfer, _redeem, _unit) public {
+    using Utils for uint256;
+    using Utils for Utils.G1Point;
+
+    constructor(address _transfer, address _redeem, uint256 _unit) BeldexBase(_transfer, _redeem, _unit) {
     }
 
-    function mint(Utils.G1Point memory y, uint256 unitAmount, bytes memory encGuess) public payable {
+    function mint(Utils.G1Point calldata y, uint256 unitAmount, bytes calldata encGuess) public payable {
         uint256 mUnitAmount = toUnitAmount(msg.value);
         require(unitAmount == mUnitAmount, "[Beldex mint] Specified mint amount is differnet from the paid amount.");
 
         mintBase(y, unitAmount, encGuess);
     }
 
-    function redeem(Utils.G1Point memory y, uint256 unitAmount, Utils.G1Point memory u, bytes memory proof, bytes memory encGuess) public {
+    function redeem(Utils.G1Point calldata y, uint256 unitAmount, Utils.G1Point calldata u, bytes calldata proof, bytes calldata encGuess) public {
         uint256 nativeAmount = toNativeAmount(unitAmount);
-        uint256 fee = nativeAmount * redeem_fee_numerator / redeem_fee_denominator; 
+        // uint256 fee = nativeAmount * redeem_fee_numerator / redeem_fee_denominator; 
 
         redeemBase(y, unitAmount, u, proof, encGuess);
 
-        if (fee > 0) {
-            beldex_agency.transfer(fee);
-            redeem_fee_log = redeem_fee_log + fee;
-        }
-        msg.sender.transfer(nativeAmount-fee);
+        // if (fee > 0) {
+        //     beldex_agency.transfer(fee);
+        //     redeem_fee_log = redeem_fee_log + fee;
+        // }
+        payable(msg.sender).transfer(nativeAmount);
     }
 
     function transfer(Utils.G1Point[] memory C, Utils.G1Point memory D, 
@@ -75,7 +78,7 @@ contract BeldexETH is BeldexBase {
             beldex_agency.transfer(fee);
             transfer_fee_log = transfer_fee_log + fee;
         }
-        msg.sender.transfer(msg.value - fee);
+        payable(msg.sender).transfer(msg.value - fee);
 
         emit TransferOccurred(y);
     }
