@@ -21,22 +21,13 @@ contract BeldexETH is BeldexBase {
 
     function redeem(Utils.G1Point memory y, uint256 unitAmount, Utils.G1Point memory u, bytes memory proof, bytes memory encGuess) public {
         uint256 nativeAmount = toNativeAmount(unitAmount);
-        uint256 fee = nativeAmount * redeem_fee_numerator / redeem_fee_denominator; 
-
         redeemBase(y, unitAmount, u, proof, encGuess);
-
-        if (fee > 0) {
-            beldex_agency.transfer(fee);
-            redeem_fee_log = redeem_fee_log + fee;
-        }
-        msg.sender.transfer(nativeAmount-fee);
+        msg.sender.transfer(nativeAmount);
     }
 
     function transfer(Utils.G1Point[] memory C, Utils.G1Point memory D, 
                       Utils.G1Point[] memory y, Utils.G1Point memory u, 
                       bytes memory proof) public payable {
-
-        uint256 startGas = gasleft();
 
         // TODO: check that sender and receiver should NOT be equal.
         uint256 size = y.length;
@@ -68,16 +59,6 @@ contract BeldexETH is BeldexBase {
         BeldexTransfer.Proof memory beldex_proof = beldex_transfer.unserialize(proof);
 
         require(beldex_transfer.verify(beldex_stm, beldex_proof), "[Beldex transfer] Failed: verification");
-
-        uint256 usedGas = startGas - gasleft();
-        
-        uint256 fee = (usedGas * transfer_fee_numerator / transfer_fee_denominator) * tx.gasprice;
-        if (fee > 0) {
-            require(msg.value >= fee, "[Beldex transfer] Not enough fee sent with the transfer transaction.");
-            beldex_agency.transfer(fee);
-            transfer_fee_log = transfer_fee_log + fee;
-        }
-        msg.sender.transfer(msg.value - fee);
 
         emit TransferOccurred(y);
     }
