@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.0;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import "./Utils.sol";
 import "./BeldexBase.sol";
 
 contract BeldexETH is BeldexBase {
+    using Utils for uint256;
+    using Utils for Utils.G1Point;
 
-    constructor(address _transfer, address _redeem, uint256 _unit) BeldexBase(_transfer, _redeem, _unit) public {
+    constructor(address _transfer, address _redeem, uint256 _unit) BeldexBase(_transfer, _redeem, _unit) {
     }
 
     function mint(Utils.G1Point memory y, uint256 unitAmount, bytes memory encGuess) public payable {
