@@ -27,7 +27,7 @@ contract BeldexETH is BeldexBase {
 
     function transfer(Utils.G1Point[] memory C, Utils.G1Point memory D, 
                       Utils.G1Point[] memory y, Utils.G1Point memory u, 
-                      bytes memory proof) public payable {
+                      bytes memory proof) public {
 
         // TODO: check that sender and receiver should NOT be equal.
         uint256 size = y.length;
