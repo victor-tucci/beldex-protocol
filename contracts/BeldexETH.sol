@@ -51,7 +51,7 @@ contract BeldexETH is BeldexBase {
 
         bytes32 uHash = keccak256(abi.encode(u));
         for (uint256 i = 0; i < nonce_set.length; i++) {
-            require(nonce_set[i] != uHash, "[Beldex transfer] Nonce already seen!");
+            // require(nonce_set[i] != uHash, "[Beldex transfer] Nonce already seen!");
         }
         nonce_set.push(uHash);
 

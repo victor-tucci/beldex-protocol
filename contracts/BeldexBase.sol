@@ -23,7 +23,7 @@ contract BeldexBase {
     */
     uint256 public unit; 
 
-    uint256 public round_len = 24; 
+    uint256 public round_len = 100; 
     uint256 public round_base = 0; // 0 for block, 1 for second (usually just for test)
 
 
@@ -99,6 +99,8 @@ contract BeldexBase {
     function setRoundLen (uint256 _round_len) public {
         require(msg.sender == beldex_agency, "Permission denied: Only admin can change round length.");
         round_len = _round_len;
+        last_global_update = block.number / _round_len;
+        delete nonce_set;
     }
 
     function setUnit (uint256 _unit) public {
@@ -130,17 +132,15 @@ contract BeldexBase {
         Utils.G1Point[2][2] memory scratch = [acc[yHash], pending[yHash]];
         return !(scratch[0][0].pEqual(zero) && scratch[0][1].pEqual(zero) && scratch[1][0].pEqual(zero) && scratch[1][1].pEqual(zero));
     }
-    function getBalance(Utils.G1Point[] memory y, uint256 round) view public returns (Utils.G1Point[2][] memory accounts) {
+    function getBalance(Utils.G1Point[] memory y) view public returns (Utils.G1Point[2][] memory accounts) {
         uint256 size = y.length;
         accounts = new Utils.G1Point[2][](size);
         for (uint256 i = 0; i < size; i++) {
             bytes32 yHash = keccak256(abi.encode(y[i]));
             accounts[i] = acc[yHash];
-            if (last_roll_over[yHash] < round) {
-                Utils.G1Point[2] memory scratch = pending[yHash];
-                accounts[i][0] = accounts[i][0].pAdd(scratch[0]);
-                accounts[i][1] = accounts[i][1].pAdd(scratch[1]);
-            }
+            Utils.G1Point[2] memory scratch = pending[yHash];
+            accounts[i][0] = accounts[i][0].pAdd(scratch[0]);
+            accounts[i][1] = accounts[i][1].pAdd(scratch[1]);
         }
     }
 
@@ -166,13 +166,12 @@ contract BeldexBase {
         else
             revert("Invalid round base.");
 
-        if (last_roll_over[yHash] < e) {
-            Utils.G1Point[2][2] memory scratch = [acc[yHash], pending[yHash]];
-            acc[yHash][0] = scratch[0][0].pAdd(scratch[1][0]);
-            acc[yHash][1] = scratch[0][1].pAdd(scratch[1][1]);
-            delete pending[yHash];
-            last_roll_over[yHash] = e;
-        }
+        Utils.G1Point[2][2] memory scratch = [acc[yHash], pending[yHash]];
+        acc[yHash][0] = scratch[0][0].pAdd(scratch[1][0]);
+        acc[yHash][1] = scratch[0][1].pAdd(scratch[1][1]);
+        delete pending[yHash];
+        last_roll_over[yHash] = e;
+
         if (last_global_update < e) {
             last_global_update = e;
             delete nonce_set;
@@ -214,7 +213,7 @@ contract BeldexBase {
         scratch[0] = scratch[0].pAdd(Utils.g().pMul(amount.gNeg()));
         bytes32 uHash = keccak256(abi.encode(u));
         for (uint256 i = 0; i < nonce_set.length; i++) {
-            require(nonce_set[i] != uHash, "[Beldex redeem] Nonce already seen!");
+            // require(nonce_set[i] != uHash, "[Beldex redeem] Nonce already seen!");
         }
         nonce_set.push(uHash);
 
