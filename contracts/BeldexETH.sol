@@ -9,7 +9,13 @@ contract BeldexETH is BeldexBase {
     using Utils for uint256;
     using Utils for Utils.G1Point;
 
+    event received(address sender, uint amount);
+
     constructor(address _transfer, address _redeem, uint256 _unit) BeldexBase(_transfer, _redeem, _unit) {
+    }
+
+    receive() external payable {
+        emit received(msg.sender, msg.value);
     }
 
     function mint(Utils.G1Point memory y, uint256 unitAmount, bytes memory encGuess) public payable {

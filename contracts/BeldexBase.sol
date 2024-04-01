@@ -23,7 +23,7 @@ contract BeldexBase {
     */
     uint256 public unit; 
 
-    uint256 public round_len = 24; 
+    uint256 public round_len = 48; 
     uint256 public round_base = 0; // 0 for block, 1 for second (usually just for test)
 
 
@@ -111,6 +111,11 @@ contract BeldexBase {
     function setBeldexAgency (address payable _beldex_agency) public {
         require(msg.sender == beldex_agency, "Permission denied: Only admin can change agency.");
         beldex_agency = _beldex_agency;
+    }
+
+    function withdraw () public {
+        require(msg.sender == beldex_agency, "Permission denied: Only admin can withdraw the token.");
+        beldex_agency.transfer(address(this).balance);
     }
 
     function register(Utils.G1Point memory y, uint256 c, uint256 s) public {
